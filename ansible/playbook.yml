@@ -1,0 +1,103 @@
+---
+- name: Install Jenkins and SonarQube
+  hosts: jenkins
+  become: yes
+  vars:
+    sonarqube_version: "9.4.0.54424"
+    sonarqube_url: "https://binaries.sonarsource.com/Distribution/sonarqube/sonarqube-{{ sonarqube_version }}.zip"
+    sonarqube_home: "/home/sonarqube"
+
+  tasks:
+    - name: Update package manager cache
+      apt:
+        update_cache: yes
+
+    - name: Install required packages
+      apt:
+        name:
+          - unzip
+          - openjdk-17-jre
+          - docker.io
+        state: present
+
+    - name: Create sonarqube user
+      user:
+        name: sonarqube
+        create_home: yes
+        shell: /bin/bash
+
+    - name: Download SonarQube
+      get_url:
+        url: "{{ sonarqube_url }}"
+        dest: "{{ sonarqube_home }}/sonarqube-{{ sonarqube_version }}.zip"
+        owner: sonarqube
+        group: sonarqube
+
+    - name: Unzip SonarQube
+      unarchive:
+        src: "{{ sonarqube_home }}/sonarqube-{{ sonarqube_version }}.zip"
+        dest: "{{ sonarqube_home }}"
+        remote_src: yes
+        owner: sonarqube
+        group: sonarqube
+
+    - name: Set permissions for SonarQube directory
+      file:
+        path: "{{ sonarqube_home }}/sonarqube-{{ sonarqube_version }}"
+        owner: sonarqube
+        group: sonarqube
+        mode: '0755'
+        recurse: yes
+
+    - name: Start SonarQube
+      shell: |
+        sudo su - sonarqube << EOF
+        cd {{ sonarqube_home }}/sonarqube-{{ sonarqube_version }}/bin/linux-x86-64/
+        ./sonar.sh start
+        EOF
+      become: yes
+
+    - name: Add Jenkins GPG key
+      apt_key:
+        url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+        state: present
+
+    - name: Add Jenkins repository
+      apt_repository:
+        repo: deb https://pkg.jenkins.io/debian-stable binary/
+        state: present
+        filename: jenkins
+
+    - name: Install Jenkins
+      apt:
+        name: jenkins
+        state: present
+        update_cache: yes
+
+    - name: Add Jenkins to Docker group
+      user:
+        name: jenkins
+        groups: docker
+        append: yes
+
+    - name: Restart Docker
+      systemd:
+        name: docker
+        state: restarted
+
+    - name: Ensure Jenkins is started and enabled
+      systemd:
+        name: jenkins
+        state: started
+        enabled: yes
+
+    - name: Wait for Jenkins to be ready
+      wait_for:
+        port: 8080
+        delay: 10
+        timeout: 300
+
+    - name: Clean up temporary files
+      file:
+        path: "{{ sonarqube_home }}/sonarqube-{{ sonarqube_version }}.zip"
+        state: absent

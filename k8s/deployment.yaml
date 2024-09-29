@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: full-deploy-app
+  labels:
+    app: full-deploy-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: full-deploy-app
+  template:
+    metadata:
+      labels:
+        app: full-deploy-app
+    spec:
+      containers:
+      - name: full-deploy-app
+        image: asmaezaidi/azed02-devops-pipeline:1 ##i ve put it in a public repo , argo doesn t need to authenticate 
+        ports:
+        - containerPort: 8080

@@ -61,7 +61,7 @@ pipeline {
                     git config user.email "zaidiasmae2002@gmail.com"
                     git config user.name "Asmae ZAIDI"
                     git checkout main
-                    git pull --allow-unrelated-histories origin main
+                    git pull origin main
                     BUILD_NUMBER=${BUILD_NUMBER}
                     sed -i "s/ImageTag/${BUILD_NUMBER}/g" k8s/deployment.yaml
                     git clean -fd
